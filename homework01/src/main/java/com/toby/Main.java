@@ -45,7 +45,7 @@ public class Main {
         // 第四问
         List<Request> requests = dataAnalyse.classifyByRequestPrefix();
         for (Request request : requests){
-            System.out.println(request.getPrePath()+"====>"+request.getUrls());
+            System.out.println(request.getPrePath()+" ====> "+request.getUrls());
         }
     }
 }
