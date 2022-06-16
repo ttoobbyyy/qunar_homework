@@ -4,12 +4,11 @@ import com.toby.dao.DataLoader;
 import com.toby.dao.DataLoaderFromFS;
 import com.toby.dao.DataStorer;
 import com.toby.dao.DataStorerToFS;
-import com.toby.service.CommentFilter;
-import com.toby.service.DataProcess;
-import com.toby.service.DataProcessImpl;
-import com.toby.service.EmptyFilter;
+import com.toby.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -21,16 +20,45 @@ public class Main {
 
     public static void main(String[] args) {
         DataLoader dataLoader = new DataLoaderFromFS(FILE);
-        DataProcess dataProcess = new DataProcessImpl(dataLoader);
-        // 添加过滤算子
-        dataProcess.add(new EmptyFilter())
-                .add(new CommentFilter());
-        // 处理数据
-        Stream<String> result = dataProcess.process();
+        Stream<String> stream = dataLoader.read();
+        // 处理空行
+        List<String> noEmptyLines = stream.filter(StringUtils::isNotBlank).collect(Collectors.toList());
+        long total = noEmptyLines.size();
+        // 处理注释
+        long commentNum = getCommentNum(noEmptyLines);
         // 保存结果
         DataStorer dataStorer = new DataStorerToFS("validLineCount.txt");
-        long count = result.count();
+        long count = total - commentNum;
         System.out.println("filter result is "+ count);
         dataStorer.wirte(String.valueOf(count).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 注释处理逻辑
+     * @param noEmptyLines
+     * @return
+     */
+    private static long getCommentNum(List<String> noEmptyLines) {
+        long count = 0L;
+        for (int i = 0; i < noEmptyLines.size(); i++) {
+            String str = noEmptyLines.get(i).trim();
+            if (str.startsWith("//")){
+                count++;
+            }else if (str.startsWith("/*") && str.endsWith("*/")){
+                count++;
+            }else if (str.startsWith("/*")){
+                int j = i+1;
+                while (j < noEmptyLines.size()){
+                    String temp = noEmptyLines.get(j).trim();
+                    if (temp.endsWith("*/")){
+                        break;
+                    }
+                    j++;
+                }
+                count += (j-i+1);
+                i = j;
+            }
+        }
+        return count;
     }
 }
