@@ -5,6 +5,7 @@ import com.toby.sevice.Parser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * @author xiaoxl
@@ -48,7 +49,6 @@ public class ParserImpl implements Parser {
             }
             result.add(temp);
         }
-        result.get(result.size()-1).setIsEnd(true);
         return result;
     }
 }

@@ -18,9 +18,9 @@ public class Client {
 
         System.out.println("# Input the valid http url !");
         System.out.println("# Enter 'q' or 'exit' to exit the client!");
+        System.out.print("(valid http url)>");
         Scanner scanner = new Scanner(System.in);
         while (true){
-            System.out.print("(valid http url)>");
             String content = scanner.nextLine();
             if (content.equals("q") || content.equals("exit")){
                 client.stop();

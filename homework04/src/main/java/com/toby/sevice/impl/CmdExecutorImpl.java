@@ -6,6 +6,7 @@ import com.toby.sevice.Executor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * @author xiaoxl
@@ -50,7 +51,7 @@ public class CmdExecutorImpl implements CmdExecutor {
      */
     private void initCmds(List<Cmd> cmds) throws Exception{
         for (Cmd cmd : cmds){
-            switch (cmd.getName()){
+            switch (cmd.getName().toLowerCase(Locale.ROOT)){
                 case CAT:
                     executors.add(new CatExecutor(cmd));
                     break;

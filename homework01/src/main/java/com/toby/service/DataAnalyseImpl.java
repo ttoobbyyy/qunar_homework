@@ -27,7 +27,6 @@ public class DataAnalyseImpl implements DataAnalyse{
 
     /**
      * 数据预处理
-     * @return
      */
     private List<Request> preProcess(){
         Map<String, Pattern> patternCache = getPatternCache();
@@ -36,24 +35,20 @@ public class DataAnalyseImpl implements DataAnalyse{
             Request request = new Request();
             request.setNum(1L);
             try {
-                request.setPath(getRequestPath(patternCache, line));
                 request.setMethod(getRequestMethod(patternCache, line));
+                request.setPath(getRequestPath(patternCache, line));
                 request.setPrePath(getRequestPrePath(patternCache, line));
                 return request;
             } catch (Exception e) {
-                log.error(line +" data parse error, ", e);
-                return null;
+                log.info(line +" data parse error");
+                return request;
             }
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+        }).collect(Collectors.toList());
         return requests;
     }
 
     /**
      * 利用正则匹配获取请求路径前缀
-     * @param patternCache
-     * @param line
-     * @return
-     * @throws Exception
      */
     private String getRequestPrePath(Map<String, Pattern> patternCache, String line) throws Exception {
         Matcher matcher = patternCache.get(Constants.REQUEST_URL_PREFIX).matcher(line);
@@ -65,10 +60,6 @@ public class DataAnalyseImpl implements DataAnalyse{
 
     /**
      * 利用正则匹配获取请求方法
-     * @param patternCache
-     * @param line
-     * @return
-     * @throws Exception
      */
     private String getRequestMethod(Map<String, Pattern> patternCache, String line) throws Exception {
         Matcher matcher = patternCache.get(Constants.REQUEST_METHOD).matcher(line);
@@ -80,9 +71,6 @@ public class DataAnalyseImpl implements DataAnalyse{
 
     /**
      * 利用正则匹配获取请求的路径
-     * @param patternCache
-     * @param line
-     * @return
      */
     private String getRequestPath(Map<String, Pattern> patternCache, String line) throws Exception {
         Pattern pattern1 = patternCache.get(Constants.REQUEST_URL_PATTERN2);
@@ -101,7 +89,6 @@ public class DataAnalyseImpl implements DataAnalyse{
 
     /**
      * 获取正则匹配的缓存pattern，提高一定数据处理性能
-     * @return
      */
     private Map<String, Pattern> getPatternCache() {
         Map<String, Pattern> patternMap = new HashMap<>();
@@ -120,10 +107,12 @@ public class DataAnalyseImpl implements DataAnalyse{
     @Override
     public List<Request> getTopTenRequest() {
         Map<String, Long> counter = new HashMap<>();
-        for (Request preProcessDatum : preProcessData) {
-            String key =
-                    preProcessDatum.getMethod() + Constants.SEPARATOR + preProcessDatum.getPath() + Constants.SEPARATOR + preProcessDatum.getPrePath();
-            counter.put(key, counter.getOrDefault(key, 0L) + 1);
+        for (Request request : preProcessData) {
+            if (request.getPrePath() != null && !Objects.equals(request.getPrePath(), "")){
+                String key =
+                        request.getMethod() + Constants.SEPARATOR + request.getPath() + Constants.SEPARATOR + request.getPrePath();
+                counter.put(key, counter.getOrDefault(key, 0L) + 1);
+            }
         }
 
         PriorityQueue<String> order = new PriorityQueue<>((o1,o2) -> (int) (counter.get(o2)-counter.get(o1)));
@@ -148,18 +137,23 @@ public class DataAnalyseImpl implements DataAnalyse{
     public List<Request> classifyByRequestPrefix() {
         Map<String, Request> result = new HashMap<>();
         for (Request request : preProcessData){
-            if (!result.containsKey(request.getPrePath())){
-                Request temp = new Request();
-                temp.setPrePath(request.getPrePath());
-                temp.setUrls(new HashSet<>());
-                result.put(request.getPrePath(),temp);
+            if (request.getPrePath() != null && !Objects.equals(request.getPrePath(), "")){
+                if (!result.containsKey(request.getPrePath())){
+                    Request temp = new Request();
+                    temp.setPrePath(request.getPrePath());
+                    temp.setUrls(new HashSet<>());
+                    result.put(request.getPrePath(),temp);
+                }
+                Request temp = result.get(request.getPrePath());
+                temp.getUrls().add(getSubPath(request));
             }
-            Request temp = result.get(request.getPrePath());
-            temp.getUrls().add(getSubPath(request));
         }
         return new ArrayList<>(result.values());
     }
 
+    /**
+     * 获取URI的子路径
+     */
     private String getSubPath(Request request) {
         return request.getPath().substring(request.getPrePath().length()-1);
     }

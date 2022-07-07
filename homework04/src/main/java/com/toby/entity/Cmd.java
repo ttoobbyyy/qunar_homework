@@ -22,8 +22,4 @@ public class Cmd {
      * 其他参数
      */
     private String otherParams;
-    /**
-     * 是否是最后一个命令
-     */
-    private Boolean isEnd = false;
 }

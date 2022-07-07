@@ -19,6 +19,9 @@ public class CatExecutor implements Executor {
     }
     @Override
     public List<String> execute(List<String> input) {
+        if (infos.getOtherParams() == null){
+            return null;
+        }
         DataLoader dataLoader = new DataLoaderFromFS(infos.getOtherParams());
         return dataLoader.read().collect(Collectors.toList());
     }

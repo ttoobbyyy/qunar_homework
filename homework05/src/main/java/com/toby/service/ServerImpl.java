@@ -1,8 +1,11 @@
 package com.toby.service;
 
+import com.google.common.io.ByteStreams;
 import com.toby.entity.CountResult;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.Buffer;
@@ -12,6 +15,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,10 +30,6 @@ public class ServerImpl implements Runnable{
      */
     private Selector selector;
     /**
-     * Server端的通道，之前没有想过用法竟然是当做selector的一个属性
-     */
-    private ServerSocketChannel serverSocketChannel;
-    /**
      * 标识运行状态
      */
     private volatile boolean stop;
@@ -37,7 +37,8 @@ public class ServerImpl implements Runnable{
     public ServerImpl(int port){
         try {
             selector = Selector.open();
-            serverSocketChannel = ServerSocketChannel.open();
+
+            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.configureBlocking(false);
             serverSocketChannel.socket().bind(new InetSocketAddress(port),1024);
             serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -84,8 +85,6 @@ public class ServerImpl implements Runnable{
 
     /**
      * handle the event key
-     * @param key
-     * @throws IOException
      */
     private void handleKey(SelectionKey key) throws IOException{
         if (key.isValid()){
@@ -138,35 +137,29 @@ public class ServerImpl implements Runnable{
      */
     private CountResult handleURL(String url) {
         CountResult countResult = new CountResult(0,0,0);
+        InputStream inputStream = null;
         try {
             // parse url
             URL parseURL = new URL(url);
-            byte[] request = parseURL(url, parseURL);
-            SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress(parseURL.getHost(), 80));
-            socketChannel.configureBlocking(false);
-
-            while (!socketChannel.finishConnect()) {
-                Thread.sleep(10);
+            HttpURLConnection httpURLConnection = (HttpURLConnection) parseURL.openConnection();
+            httpURLConnection.setRequestMethod("GET");
+            httpURLConnection.connect();
+            if (httpURLConnection.getResponseCode() == HttpURLConnection.HTTP_OK){
+                inputStream = httpURLConnection.getInputStream();
+                String contents = new String(ByteStreams.toByteArray(inputStream));
+                sortCharacter(contents.toCharArray(), countResult);
             }
-            socketChannel.write(ByteBuffer.wrap(request));
-
-            int read = 0;
-            boolean readed = false;
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            while ((read = socketChannel.read(buffer)) != -1){
-                if (read == 0 && readed){
-                    break;
-                }else if (read == 0){
-                    continue;
-                }
-                buffer.flip();
-                sortCharacter(StandardCharsets.UTF_8.decode(buffer).array(), countResult);
-                buffer.clear();
-                readed = true;
-            }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             System.out.println("\n[Error]"+e.getMessage());
             return null;
+        }finally {
+            Optional.ofNullable(inputStream).ifPresent(stream->{
+                try {
+                    stream.close();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+            });
         }
         return countResult;
     }
@@ -203,23 +196,7 @@ public class ServerImpl implements Runnable{
     }
 
     private boolean isEnglish(char c) {
-        return (c >= 97 && c <= 122) || (c >= 65 && c <= 90);
-    }
-
-    /**
-     * only Get request supported
-     */
-    private byte[] parseURL(String url, URL parseURL) {
-        StringBuilder temp = new StringBuilder();
-        assert parseURL != null;
-        temp.append("GET ").append(url).append(" HTTP/1.1\r\n")
-                .append("Host: ").append(parseURL.getHost()).append("\r\n")
-                .append("Connection: keep-alive\r\n")
-                .append("Cache-Control: max-age=0\r\n")
-                .append("User-Agent: Mozilla/5.0 (Windows NT 5.1) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.47 Safari/536.11\r\n")
-                .append("Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n")
-                .append("\r\n");
-        return temp.toString().getBytes(StandardCharsets.UTF_8);
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
     /**

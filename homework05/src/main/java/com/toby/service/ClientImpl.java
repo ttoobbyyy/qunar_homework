@@ -14,8 +14,8 @@ import java.util.Set;
  * @Date: 2022/6/19
  */
 public class ClientImpl implements Runnable{
-    private String host;
-    private int port;
+    private final String host;
+    private final int port;
     private Selector selector;
     private SocketChannel socketChannel;
     private volatile boolean stop;
@@ -36,7 +36,6 @@ public class ClientImpl implements Runnable{
     public void run() {
         try {
             doConnect();
-            System.out.println("\n# client connected !");
         }catch (IOException e){
             e.printStackTrace();
         }
@@ -82,7 +81,8 @@ public class ClientImpl implements Runnable{
                     byte[] bytes = new byte[readBuffer.remaining()];
                     readBuffer.get(bytes);
                     String body = new String(bytes, StandardCharsets.UTF_8);
-                    System.out.println("\nthe response is :" + body);
+                    System.out.println("the response is :" + body);
+                    System.out.print("(valid http url)>");
                 } else if (readBytes < 0) {
                     // the server is closed
                     key.cancel();
